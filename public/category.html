@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>BlogSpace • Category</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/popup.css">
+    <link rel="stylesheet" href="/css/category.css">
+    <script src="/js/popup.js"></script>
+     <script src="/js/navbar.js"></script>
+
+
+</head>
+
+<body>
+
+    <!-- ✅ NAVBAR -->
+    <header class="topbar">
+        <div class="brand">BlogSpace</div>
+
+        <nav class="menu">
+            <a class="link" href="/index.html">Home</a>
+            <a class="link" href="/category.html?name=Technology">Tech</a>
+            <a class="link" href="/category.html?name=Travel">Travel</a>
+            <a class="link" href="/category.html?name=Environment">Environment</a>
+            <span id="authLinks"></span>
+        </nav>
+    </header>
+
+    <!-- ✅ CATEGORY HEADER -->
+    <section class="cat-header">
+        <h2 id="catTitle"></h2>
+        <p class="subtitle">Browse all blogs in this category</p>
+    </section>
+
+    <!-- ✅ BLOG LIST -->
+    <main class="container">
+        <div id="blogList" class="grid"></div>
+        <p id="emptyMsg" class="empty">No blogs found in this category.</p>
+    </main>
+
+    <!-- ✅ JS: Load Blogs by Category -->
+    <script>
+        async function loadCategory()
+        {
+            const params = new URLSearchParams(location.search);
+            const name = params.get("name");
+
+            document.getElementById("catTitle").innerText = name + " Blogs";
+
+            try
+            {
+                const response = await fetch("http://localhost:4000/blogs");
+                const blogs = await response.json();
+
+                const list = document.getElementById("blogList");
+                const empty = document.getElementById("emptyMsg");
+
+                const filtered = blogs.filter(b => b.category.toLowerCase() === name.toLowerCase());
+                list.innerHTML = "";
+
+                if (filtered.length === 0)
+                {
+                    empty.style.display = "block";
+                    return;
+                }
+
+                empty.style.display = "none";
+
+                filtered.forEach(b =>
+                {
+                    const img = b.image_path
+                        ? `/uploads/${b.image_path}`
+                        : "/uploads/placeholder.jpg";
+
+                    const preview = b.content.length > 100
+                        ? b.content.substring(0, 100) + "..."
+                        : b.content;
+
+                    const card = `
+                        <div class="card fadeIn">
+                            <img src="${img}" alt="Blog image">
+                            <div class="title">${b.title}</div>
+                            <div class="meta">${b.category} • by ${b.first_name || "Unknown"}</div>
+                            <p>${preview}</p>
+                            <button class="btn" onclick="location.href='/view.html?id=${b.id}'">Read</button>
+                        </div>
+                    `;
+
+                    list.insertAdjacentHTML("beforeend", card);
+                });
+            }
+            catch (error)
+            {
+                console.error("Category load error:", error);
+                showPopup("Failed to load blogs.", "error");
+            }
+        }
+
+        loadCategory();
+    </script>
+
+    <!-- ✅ NAVBAR LOGIN/LOGOUT HANDLER -->
+    <script>
+        function updateNavbar()
+        {
+            const area = document.getElementById("authLinks");
+            const token = localStorage.getItem("token");
+            const saved = localStorage.getItem("user");
+            const user = saved ? JSON.parse(saved) : null;
+
+            if (!token)
+            {
+                area.innerHTML = `
+                    <a class="link" href="/login.html">Login</a>
+                    <a class="link" href="/register.html">Register</a>
+                `;
+            }
+            else
+            {
+                area.innerHTML = `
+                    <span class="link" style="background:#d1fae5;color:#065f46;font-weight:600;">
+                        Hi, ${user.first_name}
+                    </span>
+                    ${user.role === "creator" ? `<a class="link" href='/compose.html'>Compose</a>` : ""}
+                    <a class="link" href='/favourites.html'>Favourites</a>
+                    <a class="link" href='#' onclick='logout()'>Logout</a>
+                `;
+            }
+        }
+
+        function logout()
+        {
+            localStorage.clear();
+            showPopup("Logged out successfully.", "success");
+
+            setTimeout(() =>
+            {
+                location.href = "/index.html";
+            }, 1200);
+        }
+
+        updateNavbar();
+    </script>
+
+    <!-- ✅ POPUP HANDLER -->
+    <script src="/js/popup.js"></script>
+
+    <!-- ✅ Inline Animation (for blog cards) -->
+    <style>
+        .fadeIn
+        {
+            animation: fadeIn 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn
+        {
+            from { opacity: 0; transform: translateY(25px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
+</body>
+</html>
