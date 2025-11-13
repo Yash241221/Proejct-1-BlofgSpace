@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Create Blog • BlogSpace</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/popup.css">
+    <link rel="stylesheet" href="/css/compose.css">
+</head>
+
+<body>
+
+    <!-- ✅ NAVBAR -->
+    <header class="topbar">
+        <div class="brand">BlogSpace</div>
+
+        <nav class="menu">
+            <a class="link" href="/index.html">Home</a>
+            <a class="link" href="/category.html?name=Technology">Tech</a>
+            <a class="link" href="/category.html?name=Travel">Travel</a>
+            <a class="link" href="/category.html?name=Environment">Environment</a>
+            <span id="authLinks"></span>
+        </nav>
+    </header>
+
+    <!-- ✅ MAIN SECTION -->
+    <main class="compose-box fadeIn">
+        <h2>Create a New Blog</h2>
+
+        <p id="creatorWarn"
+           style="display:none; color:#b91c1c; font-weight:600; margin-bottom:20px;">
+           Only creators can publish blogs.
+        </p>
+
+        <div id="composeForm" style="display:none;">
+            <input type="text" id="title" class="input" placeholder="Blog Title">
+
+            <textarea id="content" class="textarea" placeholder="Write your blog content..."></textarea>
+
+            <label class="label">Category</label>
+            <select id="category" class="input">
+                <option value="Technology">Technology</option>
+                <option value="Travel">Travel</option>
+                <option value="Environment">Environment</option>
+            </select>
+
+            <label class="label" style="margin-top:12px;">Upload Image</label>
+            <input type="file" id="image" class="input">
+
+            <button class="btn primary" id="publishBtn" onclick="postBlog()">Publish Blog</button>
+            <div id="loadingSpinner" style="display:none; margin-top:12px;">⏳ Publishing...</div>
+        </div>
+    </main>
+
+    <!-- ✅ CHECK CREATOR ACCESS -->
+    <script>
+        function checkCreator()
+        {
+            const token = localStorage.getItem("token");
+            const saved = localStorage.getItem("user");
+            const user = saved ? JSON.parse(saved) : null;
+
+            if (!token)
+            {
+                showPopup("Please log in to continue.", "error");
+                return;
+            }
+
+            if (!user || user.role !== "creator")
+            {
+                document.getElementById("creatorWarn").style.display = "block";
+                return;
+            }
+
+            document.getElementById("composeForm").style.display = "block";
+        }
+
+        checkCreator();
+    </script>
+
+    <!-- ✅ PUBLISH BLOG FUNCTION -->
+    <script>
+        async function postBlog()
+        {
+            const token = localStorage.getItem("token");
+
+            if (!token)
+            {
+                showPopup("Please log in first.", "error");
+                return;
+            }
+
+            const title = document.getElementById("title").value.trim();
+            const content = document.getElementById("content").value.trim();
+            const category = document.getElementById("category").value;
+            const image = document.getElementById("image").files[0];
+
+            if (!title || !content)
+            {
+                showPopup("Please fill in all fields before publishing.", "error");
+                return;
+            }
+
+            const btn = document.getElementById("publishBtn");
+            const spinner = document.getElementById("loadingSpinner");
+
+            btn.disabled = true;
+            spinner.style.display = "block";
+
+            const formData = new FormData();
+            formData.append("title", title);
+            formData.append("content", content);
+            formData.append("category", category);
+            if (image) formData.append("image", image);
+
+            try
+            {
+                const response = await fetch("http://localhost:4000/blog",
+                {
+                    method: "POST",
+                    headers: { "authorization": token },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok)
+                {
+                    showPopup(data.msg || "Blog published successfully!", "success");
+
+                    setTimeout(() =>
+                    {
+                        location.href = "/index.html";
+                    }, 1500);
+                }
+                else
+                {
+                    showPopup(data.msg || "Failed to publish blog.", "error");
+                }
+            }
+            catch (err)
+            {
+                console.error(err);
+                showPopup("Network or server issue. Try again later.", "error");
+            }
+            finally
+            {
+                btn.disabled = false;
+                spinner.style.display = "none";
+            }
+        }
+
+        // Allow pressing Enter (except inside textarea)
+        document.addEventListener("keydown", (e) =>
+        {
+            if (e.key === "Enter" && document.activeElement.tagName !== "TEXTAREA")
+            {
+                postBlog();
+            }
+        });
+    </script>
+
+    <!-- ✅ NAVBAR LOGIN/LOGOUT -->
+    <script>
+        function updateNavbar()
+        {
+            const area = document.getElementById("authLinks");
+            const token = localStorage.getItem("token");
+            const saved = localStorage.getItem("user");
+            const user = saved ? JSON.parse(saved) : null;
+
+            if (!token)
+            {
+                area.innerHTML = `
+                    <a class="link" href="/login.html">Login</a>
+                    <a class="link" href="/register.html">Register</a>
+                `;
+            }
+            else
+            {
+                area.innerHTML = `
+                    <span class="link" style="background:#d1fae5;color:#065f46;font-weight:600;">
+                        Hi, ${user.first_name}
+                    </span>
+                    ${user.role === "creator" ? `<a class="link" href='/compose.html'>Compose</a>` : ""}
+                    <a class="link" href='/favourites.html'>Favourites</a>
+                    <a class="link" href='#' onclick='logout()'>Logout</a>
+                `;
+            }
+        }
+
+        function logout()
+        {
+            localStorage.clear();
+            showPopup("Logged out successfully.", "info");
+
+            setTimeout(() =>
+            {
+                location.href = "/index.html";
+            }, 1200);
+        }
+
+        updateNavbar();
+    </script>
+
+    <!-- ✅ POPUP -->
+    <script src="/js/popup.js"></script>
+
+    <!-- ✅ INLINE ANIMATION -->
+    <style>
+        .fadeIn
+        {
+            animation: fadeIn 0.6s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn
+        {
+            from { opacity: 0; transform: translateY(25px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
+</body>
+</html>
